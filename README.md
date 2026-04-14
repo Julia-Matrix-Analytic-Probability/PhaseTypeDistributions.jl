@@ -8,7 +8,7 @@ A Julia package for working with [Phase-Type (PH) distributions](https://en.wiki
 
 [Phase-Type distributions](https://en.wikipedia.org/wiki/Phase-type_distribution) model non-negative random variables as the absorption time of a continuous-time Markov chain (CTMC). They are a versatile semi-parametric family that can approximate any non-negative distribution and are widely used in queueing theory, survival analysis, and reliability engineering.
 
-Currently supported: **continuous-time** PH distributions. Discrete-time PH distributions and censored observations are not yet supported.
+Currently supported: **continuous-time, finite state space** PH distributions with fully observed absorption times.
 
 The package provides convenience constructors for common PH sub-classes:
 - **Exponential** distributions (`exp_dist`)
@@ -63,10 +63,19 @@ maph_init = maph_initialization(obs, 2)
 fitted = EM_fit(obs, maph_init)
 ```
 
+## Not Yet Supported
+
+The following are not currently supported but may be added in the future:
+
+- **Discrete-time PH distributions** (matrix-geometric distributions)
+- **Censored observations** (right-censored, interval-censored data in EM fitting)
+- **Infinite state space** PH distributions
+- **Matrix-exponential distributions** (the broader class generalizing PH distributions)
+- **Markovian Arrival Processes (MAP)** and **Batch MAP (BMAP)**
+- **General multivariate PH distributions** (e.g. the MPH* class of Bladt and Nielsen)
+
 ## Accompanying Paper
 
-This package accompanies the paper:
+This package accompanies a paper currently in preparation:
 
-> Zhihao Qiao, Budhi Surya, Azam Asanjarani, Yoni Nazarathy. *Inference for Multi-Absorbing Phase Type Distributions, Algorithms, and Applications*.
-
-See the [paper repository](https://github.com/yoninazarathy/maph-fitting-paper) for details.
+> Zhihao Qiao, Budhi Surya, Azam Asanjarani, Yoni Nazarathy. *Inference for Multi-Absorbing Phase Type Distributions, Algorithms, and Applications*. (In preparation.)
