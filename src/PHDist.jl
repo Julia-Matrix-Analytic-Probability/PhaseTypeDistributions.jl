@@ -1,84 +1,146 @@
-"""
-$(TYPEDEF)
+# Abstract type for all phase-type distributions
+abstract type AbstractPHDist <: ContinuousUnivariateDistribution end
 
-Mutable struct defines a phasetype distribution
-"""
+# --- Accessor functions (subtypes must implement) ---
 
-mutable struct PHDist
+"""Return the initial probability vector α."""
+initial_prob(d::AbstractPHDist) = error("initial_prob not implemented for $(typeof(d))")
 
-    "m × 1 Initial probability distribution across the phases. Elements should sum to 1"
-    α::Matrix{<:Real}
+"""Return the sub-generator matrix T."""
+subgenerator(d::AbstractPHDist) = error("subgenerator not implemented for $(typeof(d))")
 
-    "m x m transition rate matrix for the MAPH states"    
-    T::Matrix{<:Real}
-    
+"""Return the exit rate vector t⁰ = -T * 1."""
+exit_rates(d::AbstractPHDist) = -subgenerator(d) * ones(nphases(d))
+
+"""Return the number of transient states (phases)."""
+nphases(d::AbstractPHDist) = length(initial_prob(d))
+
+# --- General PH distribution: (α, T) matrix representation ---
+
+struct PHDist <: AbstractPHDist
+    α::Vector{Float64}
+    T::Matrix{Float64}
+
+    function PHDist(α::Vector{<:Real}, T::Matrix{<:Real})
+        m = length(α)
+        size(T) == (m, m) || throw(DimensionMismatch("T must be $m × $m, got $(size(T))"))
+        all(α .>= 0) || throw(ArgumentError("α must be non-negative"))
+        isapprox(sum(α), 1.0; atol=1e-10) || throw(ArgumentError("α must sum to 1, got $(sum(α))"))
+        new(Float64.(α), Float64.(T))
+    end
 end
 
-function ph_constructor(α::Matrix{<:Real}, T::Matrix{<:Real})
-    @assert size(T,1) == size(T, 2) "T must be a square matrix"
-    @assert size(α, 2) == size(T, 1) "The length of α must be equal to the number of rows in T"
-    return PHDist(α, T)
+initial_prob(d::PHDist) = d.α
+subgenerator(d::PHDist) = d.T
+
+# --- Generic Distributions.jl interface (fallbacks using matrix operations) ---
+
+Distributions.minimum(d::AbstractPHDist) = 0.0
+Distributions.maximum(d::AbstractPHDist) = Inf
+Distributions.insupport(d::AbstractPHDist, x::Real) = x >= 0.0
+
+function Distributions.pdf(d::AbstractPHDist, x::Real)
+    x < 0 && return 0.0
+    α = initial_prob(d)
+    T = subgenerator(d)
+    t0 = exit_rates(d)
+    return α' * exp(T * x) * t0
 end
 
-
-function hyper_exp_dist(mean_desired::Real, scv_desired::Real)
-    @assert scv_desired > 1.0 "SCV must be greater than 1"
-    μ1 = 1/(scv_desired+1) #mean parameter 
-    p = (scv_desired-1)/(scv_desired+1+2/(μ1^2)-4/μ1)
-    μ2 = (1-p)/(1-p/μ1) #mean parameter
-    α = zeros(1, 2)
-    α[1, 1] = p
-    α[1, 2] = 1-p
-    T = zeros(2,2)
-    T[1,1] = -μ1
-    T[2,2] = -μ2
-    return ph_constructor(α, (1/mean_desired)*T)
+function Distributions.logpdf(d::AbstractPHDist, x::Real)
+    p = pdf(d, x)
+    return p > 0 ? log(p) : -Inf
 end
 
-function exp_dist(mean_desired::Real)
-    T = zeros(1,1)
-    α = ones(1)
-    T[1,1] = -1/mean_desired
-    return ph_constructor(α,T)
+function Distributions.cdf(d::AbstractPHDist, x::Real)
+    x < 0 && return 0.0
+    α = initial_prob(d)
+    T = subgenerator(d)
+    m = nphases(d)
+    return 1.0 - α' * exp(T * x) * ones(m)
 end
 
-function hypo_exp_dist(mean::Real,scv::Real)
-    @assert scv < 1.0 "SCV must be less than 1"
-    n = Int(ceil(1/scv))
-    ν1 = n/(1+sqrt((n-1)*(n*scv-1)))
-    ν2 = ν1*(n-1)/(ν1-1)
-    α = zeros(1, n)
-    α[1, 1] = 1
-    T = zeros(n,n)
-    T[1,1] = -ν1
-    T[1,2] = ν1
-    for i = 2:(n-1)
-        T[i,i] = -ν2
-        T[i,i+1] = ν2
+function Statistics.mean(d::AbstractPHDist)
+    α = initial_prob(d)
+    T = subgenerator(d)
+    m = nphases(d)
+    return -(α' * (T \ ones(m)))
+end
+
+function Statistics.var(d::AbstractPHDist)
+    α = initial_prob(d)
+    T = subgenerator(d)
+    m = nphases(d)
+    Tinv_ones = T \ ones(m)
+    m1 = -(α' * Tinv_ones)
+    m2 = 2.0 * α' * (T \ Tinv_ones)
+    return m2 - m1^2
+end
+
+"""Squared coefficient of variation: Var(X) / E[X]²."""
+function scv(d::AbstractPHDist)
+    μ = mean(d)
+    σ2 = var(d)
+    return σ2 / μ^2
+end
+
+"""Compute the k-th raw moment E[X^k]."""
+function kth_moment(d::AbstractPHDist, k::Int)
+    k >= 1 || throw(ArgumentError("k must be >= 1"))
+    α = initial_prob(d)
+    T = subgenerator(d)
+    m = nphases(d)
+    return Float64(factorial(k)) * ((-1)^k) * α' * (T^(-k)) * ones(m)
+end
+
+"""Moment generating function E[exp(t*X)], defined for t < min(-diag(T))."""
+function mgf(d::AbstractPHDist, t::Real)
+    α = initial_prob(d)
+    T = subgenerator(d)
+    t0 = exit_rates(d)
+    return -(α' * ((T + t * I) \ t0))
+end
+
+function Random.rand(rng::AbstractRNG, d::AbstractPHDist)
+    α = initial_prob(d)
+    T = subgenerator(d)
+    t0 = exit_rates(d)
+    m = nphases(d)
+
+    # Choose initial state from α
+    u = rand(rng)
+    cumprob = 0.0
+    state = 1
+    for i in 1:m
+        cumprob += α[i]
+        if u <= cumprob
+            state = i
+            break
+        end
     end
 
-    T[n,n] = -ν2
+    # Simulate CTMC until absorption
+    time = 0.0
+    while true
+        rate = -T[state, state]
+        time += randexp(rng) / rate
 
-    return ph_constructor(α, (1/mean) * T) 
+        # Absorb or move to another transient state
+        u = rand(rng)
+        p_absorb = t0[state] / rate
+        if u < p_absorb
+            return time
+        end
+
+        # Move to another transient state
+        cumprob = 0.0
+        for j in 1:m
+            j == state && continue
+            cumprob += T[state, j] / rate
+            if u - p_absorb <= cumprob
+                state = j
+                break
+            end
+        end
+    end
 end
-
-function get_absorbing_vector(ph::PHDist)
-    return -1.0 * ph.T * ones(size(ph.T, 1))
-end
-# function mixed_expo_dist(p1::Int64,ω::Real)
-#     α = ones(1, p1) / p 
-#     α = (ones(p1)/p)'
-#     return PHDist(α, Matrix(-ω*I(p1)))
-# end
-
-
-
-
-
-
-
-
-
-
-
-

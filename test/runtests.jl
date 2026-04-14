@@ -1,13 +1,16 @@
 using Test
 using Random
-using MAPHDistributions
+using PhaseTypeDistributions
+using PhaseTypeDistributions: mgf
 using Distributions
 using LinearAlgebra
+using Statistics
 
-Random.seed!(2)
+Random.seed!(42)
 
-# include("MAPHDist.jl")
-include("MAPHStatistics.jl")
-#include("MAPHfit.jl")
-
-
+@testset "PhaseTypeDistributions.jl" begin
+    include("test_phdist.jl")
+    include("test_subtypes.jl")
+    include("test_conversions.jl")
+    include("test_comparison.jl")
+end
