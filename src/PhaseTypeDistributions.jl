@@ -4,7 +4,8 @@ using LinearAlgebra
 using Random
 using Statistics
 using Distributions
-import Distributions: pdf, logpdf, cdf, insupport, minimum, maximum
+import Distributions: pdf, logpdf, cdf, ccdf, insupport, minimum, maximum,
+    quantile, params, skewness, kurtosis
 import Random: rand
 import Statistics: mean, var
 using SpecialFunctions: logabsgamma

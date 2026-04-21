@@ -80,21 +80,21 @@ function Distributions.pdf(d::HypoExponentialDist, x::Real)
     return result
 end
 
-function Distributions.cdf(d::HypoExponentialDist, x::Real)
-    x < 0 && return 0.0
+function Distributions.ccdf(d::HypoExponentialDist, x::Real)
+    x <= 0 && return 1.0
     λ = d.rates
     n = length(λ)
-    n == 1 && return 1.0 - exp(-λ[1] * x)
+    n == 1 && return exp(-λ[1] * x)
 
-    # Partial fraction expansion
-    result = 1.0
+    # Partial fraction expansion (requires distinct rates)
+    result = 0.0
     for i in 1:n
         coeff = 1.0
         for j in 1:n
             j == i && continue
             coeff *= λ[j] / (λ[j] - λ[i])
         end
-        result -= coeff * exp(-λ[i] * x)
+        result += coeff * exp(-λ[i] * x)
     end
     return result
 end
@@ -114,4 +114,10 @@ end
 
 function mgf(d::HypoExponentialDist, t::Real)
     return prod(d.rates ./ (d.rates .- t))
+end
+
+Distributions.params(d::HypoExponentialDist) = (d.rates,)
+
+function Base.show(io::IO, d::HypoExponentialDist)
+    print(io, "HypoExponentialDist(rates=", d.rates, ")")
 end

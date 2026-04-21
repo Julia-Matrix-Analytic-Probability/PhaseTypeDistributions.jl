@@ -52,10 +52,8 @@ end
 
 function Distributions.pdf(d::ErlangPHDist, x::Real)
     x < 0 && return 0.0
-    k = d.shape
-    λ = d.rate
-    # f(x) = λ^k * x^(k-1) * exp(-λx) / (k-1)!
-    return (λ^k * x^(k-1) * exp(-λ * x)) / factorial(k - 1)
+    # Compute via logpdf for numerical stability at large shape or large x.
+    return exp(logpdf(d, x))
 end
 
 function Distributions.logpdf(d::ErlangPHDist, x::Real)
@@ -65,11 +63,11 @@ function Distributions.logpdf(d::ErlangPHDist, x::Real)
     return k * log(λ) + (k - 1) * log(x) - λ * x - first(logabsgamma(k))
 end
 
-function Distributions.cdf(d::ErlangPHDist, x::Real)
-    x < 0 && return 0.0
+function Distributions.ccdf(d::ErlangPHDist, x::Real)
+    x <= 0 && return 1.0
     k = d.shape
     λ = d.rate
-    # CDF = 1 - Σ_{i=0}^{k-1} (λx)^i * exp(-λx) / i!
+    # ccdf = Σ_{i=0}^{k-1} (λx)^i * exp(-λx) / i!   (Poisson tail)
     s = 0.0
     term = 1.0  # (λx)^0 / 0! = 1
     lx = λ * x
@@ -77,7 +75,7 @@ function Distributions.cdf(d::ErlangPHDist, x::Real)
         s += term
         term *= lx / (i + 1)
     end
-    return 1.0 - s * exp(-lx)
+    return s * exp(-lx)
 end
 
 function Random.rand(rng::AbstractRNG, d::ErlangPHDist)
@@ -99,4 +97,10 @@ end
 
 function mgf(d::ErlangPHDist, t::Real)
     return (d.rate / (d.rate - t))^d.shape
+end
+
+Distributions.params(d::ErlangPHDist) = (d.shape, d.rate)
+
+function Base.show(io::IO, d::ErlangPHDist)
+    print(io, "ErlangPHDist(shape=", d.shape, ", rate=", d.rate, ")")
 end

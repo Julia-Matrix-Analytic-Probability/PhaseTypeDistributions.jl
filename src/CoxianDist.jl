@@ -101,13 +101,7 @@ function Distributions.pdf(d::CoxianDist, x::Real)
     return α' * exp(T * x) * t0
 end
 
-function Distributions.cdf(d::CoxianDist, x::Real)
-    x < 0 && return 0.0
-    α = initial_prob(d)
-    T = subgenerator(d)
-    k = nphases(d)
-    return 1.0 - α' * exp(T * x) * ones(k)
-end
+# ccdf and cdf inherited from AbstractPHDist (matrix exponential form).
 
 function Random.rand(rng::AbstractRNG, d::CoxianDist)
     k = nphases(d)
@@ -131,4 +125,10 @@ function mgf(d::CoxianDist, t::Real)
     T = subgenerator(d)
     t0 = exit_rates(d)
     return -α' * ((T - t * I) \ t0)
+end
+
+Distributions.params(d::CoxianDist) = (d.rates, d.exit_probs)
+
+function Base.show(io::IO, d::CoxianDist)
+    print(io, "CoxianDist(rates=", d.rates, ", exit_probs=", d.exit_probs, ")")
 end

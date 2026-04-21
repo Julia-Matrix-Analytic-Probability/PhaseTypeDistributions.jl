@@ -52,12 +52,19 @@ function Distributions.logpdf(d::AbstractPHDist, x::Real)
     return p > 0 ? log(p) : -Inf
 end
 
-function Distributions.cdf(d::AbstractPHDist, x::Real)
-    x < 0 && return 0.0
+# For PH distributions, ccdf is the natively-computed quantity: α' exp(Tx) 1.
+# cdf derives from it, so tail precision is preserved. Subtypes override ccdf.
+function Distributions.ccdf(d::AbstractPHDist, x::Real)
+    x <= 0 && return 1.0
     α = initial_prob(d)
     T = subgenerator(d)
     m = nphases(d)
-    return 1.0 - α' * exp(T * x) * ones(m)
+    return α' * exp(T * x) * ones(m)
+end
+
+function Distributions.cdf(d::AbstractPHDist, x::Real)
+    x < 0 && return 0.0
+    return 1.0 - ccdf(d, x)
 end
 
 function Statistics.mean(d::AbstractPHDist)
@@ -99,6 +106,57 @@ function mgf(d::AbstractPHDist, t::Real)
     T = subgenerator(d)
     t0 = exit_rates(d)
     return -(α' * ((T + t * I) \ t0))
+end
+
+# Skewness: E[(X-μ)³] / σ³
+function Distributions.skewness(d::AbstractPHDist)
+    μ = mean(d)
+    m2 = kth_moment(d, 2)
+    m3 = kth_moment(d, 3)
+    σ2 = m2 - μ^2
+    σ = sqrt(σ2)
+    return (m3 - 3μ * m2 + 2μ^3) / σ^3
+end
+
+# Excess kurtosis: E[(X-μ)⁴] / σ⁴ - 3
+function Distributions.kurtosis(d::AbstractPHDist)
+    μ = mean(d)
+    m2 = kth_moment(d, 2)
+    m3 = kth_moment(d, 3)
+    m4 = kth_moment(d, 4)
+    σ2 = m2 - μ^2
+    return (m4 - 4μ * m3 + 6μ^2 * m2 - 3μ^4) / σ2^2 - 3
+end
+
+# Quantile via bisection. PH support is [0, ∞), so we grow hi from the mean.
+function Distributions.quantile(d::AbstractPHDist, p::Real)
+    0 <= p <= 1 || throw(DomainError(p, "quantile p must be in [0, 1]"))
+    p == 0 && return 0.0
+    p == 1 && return Inf
+    hi = max(mean(d), 1.0)
+    while cdf(d, hi) < p
+        hi *= 2
+        hi > 1e300 && return hi
+    end
+    lo = 0.0
+    tol = 1e-12 * max(1.0, hi)
+    for _ in 1:200
+        mid = 0.5 * (lo + hi)
+        if cdf(d, mid) < p
+            lo = mid
+        else
+            hi = mid
+        end
+        (hi - lo) < tol && break
+    end
+    return 0.5 * (lo + hi)
+end
+
+# Distributions.jl convention: params returns a tuple of the defining parameters.
+Distributions.params(d::PHDist) = (d.α, d.T)
+
+function Base.show(io::IO, d::PHDist)
+    print(io, "PHDist(α=", d.α, ", T=", d.T, ")")
 end
 
 function Random.rand(rng::AbstractRNG, d::AbstractPHDist)

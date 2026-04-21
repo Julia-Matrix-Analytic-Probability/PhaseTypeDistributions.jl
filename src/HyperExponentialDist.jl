@@ -49,9 +49,9 @@ function Distributions.pdf(d::HyperExponentialDist, x::Real)
     return sum(d.probs .* d.rates .* exp.(-d.rates .* x))
 end
 
-function Distributions.cdf(d::HyperExponentialDist, x::Real)
-    x < 0 && return 0.0
-    return 1.0 - sum(d.probs .* exp.(-d.rates .* x))
+function Distributions.ccdf(d::HyperExponentialDist, x::Real)
+    x <= 0 && return 1.0
+    return sum(d.probs .* exp.(-d.rates .* x))
 end
 
 function Random.rand(rng::AbstractRNG, d::HyperExponentialDist)
@@ -74,4 +74,10 @@ end
 
 function mgf(d::HyperExponentialDist, t::Real)
     return sum(d.probs .* d.rates ./ (d.rates .- t))
+end
+
+Distributions.params(d::HyperExponentialDist) = (d.probs, d.rates)
+
+function Base.show(io::IO, d::HyperExponentialDist)
+    print(io, "HyperExponentialDist(probs=", d.probs, ", rates=", d.rates, ")")
 end
