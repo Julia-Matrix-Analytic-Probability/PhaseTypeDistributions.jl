@@ -42,7 +42,7 @@ PHDist(Erlang(3, 0.5))     # 3-phase PH
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/yoninazarathy/PhaseTypeDistributions.jl")
+Pkg.add(url="https://github.com/Julia-Matrix-Analytic-Probability/PhaseTypeDistributions.jl")
 ```
 
 ## Basic Examples
