@@ -13,4 +13,5 @@ Random.seed!(42)
     include("test_subtypes.jl")
     include("test_conversions.jl")
     include("test_comparison.jl")
+    include("test_maph.jl")
 end

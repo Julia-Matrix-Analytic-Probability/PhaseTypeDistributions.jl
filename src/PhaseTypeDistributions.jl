@@ -25,15 +25,23 @@ include("conversions.jl")
 # Comparison helpers for non-identifiable distributions
 include("comparison.jl")
 
+# Multi-absorbing phase-type distributions
+include("MAPHDist.jl")
+
 # Types
 export AbstractPHDist, PHDist
 export HyperExponentialDist, HypoExponentialDist, ErlangPHDist, CoxianDist
+export AbstractMAPHDist, MAPHDist
 
 # Accessor functions
 export initial_prob, subgenerator, exit_rates, nphases
+export exit_rate_matrix, nabsorbing, absorption_probs, marginal_absorption
 
 # PH-specific functions
 export scv, kth_moment, mgf
+
+# MAPH-specific functions
+export kth_joint_moment, conditional_time
 
 # Comparison helpers
 export moments_isapprox, distribution_isapprox, moment_vector
