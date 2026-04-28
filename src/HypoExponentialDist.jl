@@ -67,6 +67,10 @@ function Distributions.pdf(d::HypoExponentialDist, x::Real)
     n = length(λ)
     n == 1 && return λ[1] * exp(-λ[1] * x)
 
+    # Partial fractions diverge when any pair of rates coincide; fall back to
+    # the matrix-exponential form in that case.
+    allunique(λ) || return invoke(pdf, Tuple{AbstractPHDist, Real}, d, x)
+
     # Partial fraction expansion (requires distinct rates)
     result = 0.0
     for i in 1:n
@@ -85,6 +89,8 @@ function Distributions.ccdf(d::HypoExponentialDist, x::Real)
     λ = d.rates
     n = length(λ)
     n == 1 && return exp(-λ[1] * x)
+
+    allunique(λ) || return invoke(ccdf, Tuple{AbstractPHDist, Real}, d, x)
 
     # Partial fraction expansion (requires distinct rates)
     result = 0.0

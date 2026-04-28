@@ -186,6 +186,35 @@ end
         @test_throws ArgumentError HypoExponentialDist([1.0, -2.0])
         @test_throws ArgumentError HypoExponentialDist(2.0, 1.5)  # SCV must be < 1
     end
+
+    @testset "repeated rates fall back to matrix form" begin
+        # Two equal rates ≡ Erlang(2, λ); pdf/ccdf must not divide by zero.
+        ho_eq = HypoExponentialDist([3.0, 3.0])
+        er = ErlangPHDist(2, 3.0)
+        for x in [0.1, 0.5, 1.0, 2.0]
+            @test pdf(ho_eq, x) ≈ pdf(er, x) atol=1e-10
+            @test ccdf(ho_eq, x) ≈ ccdf(er, x) atol=1e-10
+            @test isfinite(pdf(ho_eq, x))
+            @test isfinite(ccdf(ho_eq, x))
+        end
+        @test mean(ho_eq) ≈ mean(er) atol=1e-10
+        @test var(ho_eq) ≈ var(er) atol=1e-10
+
+        # One distinct rate followed by repeats — the (mean, scv) constructor
+        # produces this shape for scv < 0.5 (e.g. n=4 here).
+        ho_mix = HypoExponentialDist([2.0, 5.0, 5.0, 5.0])
+        ph = PHDist(ho_mix)
+        for x in [0.1, 0.5, 1.0, 2.0]
+            @test pdf(ho_mix, x) ≈ pdf(ph, x) atol=1e-10
+            @test ccdf(ho_mix, x) ≈ ccdf(ph, x) atol=1e-10
+            @test isfinite(pdf(ho_mix, x))
+        end
+
+        # The (mean, scv) constructor with small scv used to NaN; should not now.
+        ho_small = HypoExponentialDist(2.0, 0.3)
+        @test isfinite(pdf(ho_small, 1.0))
+        @test isapprox(mean(ho_small), 2.0; atol=1e-6)
+    end
 end
 
 @testset "ErlangPHDist" begin
