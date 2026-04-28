@@ -5,7 +5,7 @@ using Random
 using Statistics
 using Distributions
 import Distributions: pdf, logpdf, cdf, ccdf, insupport, minimum, maximum,
-    quantile, params, skewness, kurtosis
+    quantile, params, skewness, kurtosis, mgf
 import Random: rand
 import Statistics: mean, var
 using SpecialFunctions: logabsgamma
@@ -37,8 +37,8 @@ export AbstractMAPHDist, MAPHDist
 export initial_prob, subgenerator, exit_rates, nphases
 export exit_rate_matrix, nabsorbing, absorption_probs, marginal_absorption
 
-# PH-specific functions
-export scv, kth_moment, mgf
+# PH-specific functions (mgf extends Distributions.mgf — not re-exported)
+export scv, kth_moment
 
 # MAPH-specific functions
 export kth_joint_moment, conditional_time

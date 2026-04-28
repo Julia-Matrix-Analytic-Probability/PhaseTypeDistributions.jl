@@ -95,13 +95,14 @@
     end
 
     @testset "random sampling" begin
-        samples = [rand(ph1) for _ in 1:10_000]
+        rng = StableRNG(42)
+        samples = [rand(rng, ph1) for _ in 1:10_000]
         @test all(s -> s >= 0, samples)
         @test isapprox(Statistics.mean(samples), 0.5; atol=0.05)
         @test isapprox(Statistics.var(samples), 0.25; atol=0.05)
 
         # Vectorized rand(d, n)
-        xs = rand(ph1, 1000)
+        xs = rand(rng, ph1, 1000)
         @test length(xs) == 1000
         @test all(x -> x >= 0, xs)
     end

@@ -92,9 +92,9 @@
     end
 
     @testset "random sampling" begin
-        Random.seed!(123)
+        rng = StableRNG(123)
         N = 20_000
-        samples = rand(d, N)
+        samples = rand(rng, d, N)
         @test length(samples) == N
         @test all(s -> s[1] >= 0 && 1 <= s[2] <= 2, samples)
 
