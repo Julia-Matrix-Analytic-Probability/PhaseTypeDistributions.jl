@@ -1,12 +1,13 @@
 using Test
-using Random
+using StableRNGs
 using PhaseTypeDistributions
 using PhaseTypeDistributions: mgf
 using Distributions
 using LinearAlgebra
 using Statistics
 
-Random.seed!(42)
+# Per-testset `rng = StableRNG(seed)` is preferred over a global seed: it makes
+# each random testset independently reproducible and order-insensitive.
 
 @testset "PhaseTypeDistributions.jl" begin
     include("test_phdist.jl")

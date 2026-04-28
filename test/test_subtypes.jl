@@ -55,10 +55,11 @@
     end
 
     @testset "random sampling" begin
-        samples = [rand(he) for _ in 1:10_000]
+        rng = StableRNG(42)
+        samples = [rand(rng, he) for _ in 1:10_000]
         @test isapprox(Statistics.mean(samples), mean(he); atol=0.05)
 
-        xs = rand(he, 1000)
+        xs = rand(rng, he, 1000)
         @test length(xs) == 1000
         @test all(x -> x >= 0, xs)
     end
@@ -153,10 +154,11 @@ end
     end
 
     @testset "random sampling" begin
-        samples = [rand(ho) for _ in 1:10_000]
+        rng = StableRNG(42)
+        samples = [rand(rng, ho) for _ in 1:10_000]
         @test isapprox(Statistics.mean(samples), mean(ho); atol=0.05)
 
-        xs = rand(ho, 500)
+        xs = rand(rng, ho, 500)
         @test length(xs) == 500
     end
 
@@ -263,7 +265,8 @@ end
     end
 
     @testset "random sampling" begin
-        samples = [rand(er) for _ in 1:10_000]
+        rng = StableRNG(42)
+        samples = [rand(rng, er) for _ in 1:10_000]
         @test isapprox(Statistics.mean(samples), 1.5; atol=0.05)
     end
 
@@ -351,7 +354,8 @@ end
     end
 
     @testset "random sampling" begin
-        samples = [rand(cox) for _ in 1:10_000]
+        rng = StableRNG(42)
+        samples = [rand(rng, cox) for _ in 1:10_000]
         @test isapprox(Statistics.mean(samples), mean(cox); atol=0.05)
     end
 
@@ -377,7 +381,7 @@ end
 
 # Sampling-quality test: empirical CDF at several points should match the true CDF.
 @testset "Sampling quality — empirical vs true CDF" begin
-    Random.seed!(42)
+    rng = StableRNG(42)
     N = 50_000
     tol = 5 / sqrt(N)  # ~DKW bound, loose
 
@@ -388,7 +392,7 @@ end
         CoxianDist([3.0, 4.0, 5.0], [0.2, 0.3]),
         PHDist([0.6, 0.4], [-3.0 1.0; 0.0 -2.0]),
     ]
-        samples = rand(d, N)
+        samples = rand(rng, d, N)
         for x in [quantile(d, 0.1), quantile(d, 0.5), quantile(d, 0.9)]
             emp = count(≤(x), samples) / N
             @test abs(emp - cdf(d, x)) < tol
