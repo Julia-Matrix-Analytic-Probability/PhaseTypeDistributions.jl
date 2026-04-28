@@ -205,7 +205,13 @@ The following are not currently supported but may be added in the future:
 - **Point mass at zero** (defective initial distributions where `sum(α) < 1`)
 - **Markovian Arrival Processes (MAP)** and **Batch MAP (BMAP)**
 - **General multivariate PH distributions** (e.g. the MPH* class of Bladt and Nielsen)
-- **EM fitting for MAPH** (the inference algorithm from the accompanying paper) — under development
+
+## Fitting
+
+This package defines distributions only. Fitting algorithms — moment-matching
+(`fit_mm`) and EM-based maximum likelihood (`fit_mle`) for both PH and MAPH —
+live in the companion package
+[PhaseTypeDistributionsFitting.jl](https://github.com/Julia-Matrix-Analytic-Probability/PhaseTypeDistributionsFitting.jl).
 
 ## Accompanying Paper
 
