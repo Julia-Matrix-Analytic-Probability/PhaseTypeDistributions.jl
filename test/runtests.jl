@@ -1,7 +1,6 @@
 using Test
 using StableRNGs
 using PhaseTypeDistributions
-using PhaseTypeDistributions: mgf
 using Distributions
 using LinearAlgebra
 using Statistics
