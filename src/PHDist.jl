@@ -1,4 +1,12 @@
-# Abstract type for all phase-type distributions
+"""
+    AbstractPHDist <: ContinuousUnivariateDistribution
+
+Supertype for every phase-type distribution in this package. Subtypes must
+implement [`initial_prob`](@ref) and [`subgenerator`](@ref); generic
+implementations of the Distributions.jl interface (`pdf`, `cdf`, `ccdf`,
+`mean`, `var`, `rand`, …) are provided by fallback and can be overridden by
+specialized subtypes for efficiency.
+"""
 abstract type AbstractPHDist <: ContinuousUnivariateDistribution end
 
 # --- Accessor functions (subtypes must implement) ---

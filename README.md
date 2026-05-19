@@ -163,7 +163,7 @@ with `n = 1`:
 
 ```julia
 PHDist(d)               # marginal τ  ~  PH(α, T)
-PHDist(d, 1)            # conditional τ | κ = 1  (Doob h-transform)
+PHDist(d, 1)            # conditional τ | κ = 1
 conditional_time(d, 1)  # alias for PHDist(d, 1)
 
 MAPHDist(ph)            # embed any AbstractPHDist as a 1-absorbing-state MAPH
@@ -194,7 +194,7 @@ or exponential (SCV = 1), following the algorithm in the accompanying paper.
 MAPHDist(π, μ, σ²)
 ```
 
-## Not Yet Supported
+## Future Developments
 
 The following are not currently supported but may be added in the future:
 
