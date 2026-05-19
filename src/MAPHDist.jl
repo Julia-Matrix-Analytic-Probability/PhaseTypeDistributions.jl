@@ -113,12 +113,25 @@ end
 
 # ---- Distribution-like API (bivariate: u continuous, k discrete) ----
 
+"""
+    pdf(d::MAPHDist, u::Real, k::Integer)
+
+Joint sub-density `f(u, k) = α' · exp(T·u) · D[:, k]`. Integrating in `u` over
+`(0, ∞)` gives the marginal absorption probability `π_k`.
+"""
 function Distributions.pdf(d::MAPHDist, u::Real, k::Integer)
     1 <= k <= nabsorbing(d) || throw(ArgumentError("k = $k out of range 1..$(nabsorbing(d))"))
     u < 0 && return 0.0
     return d.α' * exp(d.T * u) * d.D[:, k]
 end
 
+"""
+    cdf(d::MAPHDist, u::Real, k::Integer)
+
+Joint cdf `F(u, k) = P(τ ≤ u, κ = k) = α' (I - exp(T·u)) R[:, k]`, where
+`R = -T⁻¹D` is the absorption-probability matrix ([`absorption_probs`](@ref)).
+Approaches `π_k` as `u → ∞`.
+"""
 function Distributions.cdf(d::MAPHDist, u::Real, k::Integer)
     1 <= k <= nabsorbing(d) || throw(ArgumentError("k = $k out of range 1..$(nabsorbing(d))"))
     u <= 0 && return 0.0
@@ -148,6 +161,14 @@ function _sample_categorical(rng::AbstractRNG, p::AbstractVector)
     return length(p)
 end
 
+"""
+    rand([rng,] d::MAPHDist)            -> Tuple{Float64, Int}
+    rand([rng,] d::MAPHDist, n::Integer) -> Vector{Tuple{Float64, Int}}
+
+Draw a sample `(τ, κ)` from the MAPH distribution by simulating the underlying
+CTMC until absorption. Returns the absorption time and the index of the
+absorbing state reached.
+"""
 function Random.rand(rng::AbstractRNG, d::MAPHDist)
     T, D = d.T, d.D
     m, n = nphases(d), nabsorbing(d)

@@ -4,7 +4,8 @@ CurrentModule = PhaseTypeDistributions
 
 # PhaseTypeDistributions.jl
 
-A Julia package for working with [phase-type (PH) distributions](https://en.wikipedia.org/wiki/Phase-type_distribution)
+A Julia package for working with
+[phase-type (PH) distributions](https://en.wikipedia.org/wiki/Phase-type_distribution)
 and their multi-absorbing generalization (MAPH). PH distributions are
 implemented as subtypes of `Distributions.ContinuousUnivariateDistribution`,
 integrating with the Julia statistics ecosystem.
@@ -12,6 +13,23 @@ integrating with the Julia statistics ecosystem.
 The package accompanies the paper *Inference for Multi-Absorbing Phase Type
 Distributions, Algorithms, and Applications* (Qiao, Surya, Asanjarani,
 Nazarathy; in preparation).
+
+## Background
+
+A continuous-time PH distribution is the distribution of the absorption time
+of a finite-state continuous-time Markov chain with a single absorbing state.
+Concretely, given an initial distribution `α` over `m` transient phases and a
+sub-generator matrix `T`, the absorption time `τ` has
+
+```math
+F_τ(x) = 1 - α^⊤ \exp(Tx) \mathbf{1}, \qquad
+f_τ(x) = α^⊤ \exp(Tx) t^0, \qquad
+t^0 = -T \mathbf{1}.
+```
+
+The MAPH generalization replaces the single absorbing state with `n` distinct
+ones; the joint distribution of `(τ, κ)` (absorption time and the index of
+the absorbing state reached) is the natural model for *competing risks*.
 
 ## Installation
 
@@ -22,11 +40,11 @@ Pkg.add(url = "https://github.com/Julia-Matrix-Analytic-Probability/PhaseTypeDis
 
 ## Scope
 
-Currently supported: **continuous-time, finite state space** PH distributions
-with fully observed absorption times, and their multi-absorbing generalization.
+Continuous-time, finite state space, fully observed absorption times — for PH
+and MAPH.
 
-| Type                    | Description                                     |
-|-------------------------|-------------------------------------------------|
+| Type                            | Description                                     |
+|---------------------------------|-------------------------------------------------|
 | [`PHDist`](@ref)                | General PH from `(α, T)`                        |
 | [`HyperExponentialDist`](@ref)  | Mixture of exponentials (SCV ≥ 1)               |
 | [`HypoExponentialDist`](@ref)   | Convolution of exponentials (SCV ≤ 1)           |
@@ -36,36 +54,43 @@ with fully observed absorption times, and their multi-absorbing generalization.
 
 ## Quick start
 
-```julia
+```@example quick
 using PhaseTypeDistributions
 using Distributions
 
-# General PH
-ph = PHDist([0.6, 0.4], [-3.0 1.0; 0.0 -2.0])
-mean(ph); var(ph); pdf(ph, 1.0); cdf(ph, 1.0); rand(ph, 1000)
+ph  = PHDist([0.6, 0.4], [-3.0 1.0; 0.0 -2.0])
+mean(ph), var(ph), pdf(ph, 1.0), cdf(ph, 1.0)
+```
 
-# Specialized subtypes
-he  = HyperExponentialDist(2.0, 3.0)    # mean=2, SCV=3
-ho  = HypoExponentialDist(2.0, 0.5)     # mean=2, SCV=0.5
+```@example quick
+he  = HyperExponentialDist(2.0, 3.0)        # by mean and SCV
+ho  = HypoExponentialDist(2.0, 0.5)
 er  = ErlangPHDist(3, 2.0)
 cox = CoxianDist([3.0, 4.0, 5.0], [0.2, 0.3])
 
-# Conversion to general PH
-PHDist(he)                              # (α, T) form
+mean.([he, ho, er, cox])
+```
 
-# MAPH — joint distribution of (absorption time, absorbing state)
+```@example quick
 α = [0.6, 0.4]
 T = [-3.0 1.0; 0.5 -2.0]
 D = [1.5 0.5; 1.0 0.5]
 d = MAPHDist(α, T, D)
-τ, κ = rand(d)                          # one sample
-marginal_absorption(d)                  # P(κ = k) vector
-PHDist(d)                               # marginal τ  ~  PH
-PHDist(d, 1)                            # conditional τ | κ = 1
+marginal_absorption(d), rand(d)
 ```
 
 ## Navigation
 
-- [PH distributions](ph.md) — walk through the PH types and API.
-- [MAPH distributions](maph.md) — MAPH type and its interface with PH.
-- [API reference](api.md) — exported names with full docstrings.
+- [PH distributions](ph.md) — walk through every PH type and the full API.
+- [MAPH distributions](maph.md) — MAPH type, joint distribution API, bridges to PH.
+- [API reference](api.md) — index of every documented name.
+
+## Not yet supported
+
+- Discrete-time PH distributions (matrix-geometric).
+- Censored observations.
+- Infinite state space.
+- Matrix-exponential distributions (the broader class generalizing PH).
+- Point mass at zero (defective initial distributions where `sum(α) < 1`).
+- Markovian Arrival Processes (MAP, BMAP).
+- General multivariate PH distributions (e.g. the MPH* class).

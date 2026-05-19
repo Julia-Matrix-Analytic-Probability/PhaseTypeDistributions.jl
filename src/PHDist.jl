@@ -25,6 +25,20 @@ nphases(d::AbstractPHDist) = length(initial_prob(d))
 
 # --- General PH distribution: (α, T) matrix representation ---
 
+"""
+    PHDist(α, T)
+
+General phase-type distribution parameterized by an initial probability vector
+`α` (length `m`, non-negative, sums to 1) and a sub-generator matrix `T`
+(`m × m`, with strictly negative diagonal and non-negative off-diagonal entries
+such that each row sum is non-positive). The exit-rate vector is
+`t⁰ = -T · 1_m`.
+
+`PHDist` is the most general PH type in the package; specialized subtypes
+([`HyperExponentialDist`](@ref), [`HypoExponentialDist`](@ref),
+[`ErlangPHDist`](@ref), [`CoxianDist`](@ref)) can be converted to it via
+`PHDist(d)`.
+"""
 struct PHDist <: AbstractPHDist
     α::Vector{Float64}
     T::Matrix{Float64}
