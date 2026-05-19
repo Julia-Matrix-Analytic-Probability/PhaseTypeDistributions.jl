@@ -1,6 +1,12 @@
 # PhaseTypeDistributions.jl
 
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://julia-matrix-analytic-probability.github.io/PhaseTypeDistributions.jl/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://julia-matrix-analytic-probability.github.io/PhaseTypeDistributions.jl/dev/)
+[![CI](https://github.com/Julia-Matrix-Analytic-Probability/PhaseTypeDistributions.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/Julia-Matrix-Analytic-Probability/PhaseTypeDistributions.jl/actions/workflows/CI.yml)
+
 A Julia package for working with [Phase-Type (PH) distributions](https://en.wikipedia.org/wiki/Phase-type_distribution). PH distributions are implemented as subtypes of `ContinuousUnivariateDistribution` from [Distributions.jl](https://github.com/JuliaStats/Distributions.jl), providing full integration with the Julia statistics ecosystem.
+
+📖 **Documentation:** [latest dev](https://julia-matrix-analytic-probability.github.io/PhaseTypeDistributions.jl/dev/) (the *stable* link will work once the package is tagged).
 
 ## Supported Distribution Types
 
