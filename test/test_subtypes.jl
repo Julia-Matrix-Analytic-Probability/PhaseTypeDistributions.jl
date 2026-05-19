@@ -327,6 +327,15 @@ end
         end
         @test skewness(cox) ≈ skewness(ph) atol=1e-6
         @test kurtosis(cox) ≈ kurtosis(ph) atol=1e-6
+        # mgf must match PHDist (regression: signed-tI bug)
+        for t in [-0.5, 0.0, 0.5, 1.0]
+            @test PhaseTypeDistributions.mgf(cox, t) ≈ PhaseTypeDistributions.mgf(ph, t) atol=1e-10
+        end
+        # single-phase Coxian ≡ Exponential — mgf(t) = λ/(λ-t)
+        cox1 = CoxianDist(2.0)
+        for t in [-1.0, 0.0, 0.5, 1.0]
+            @test PhaseTypeDistributions.mgf(cox1, t) ≈ 2.0 / (2.0 - t) atol=1e-10
+        end
     end
 
     @testset "Coxian with exit_probs=0 is hypoexponential" begin

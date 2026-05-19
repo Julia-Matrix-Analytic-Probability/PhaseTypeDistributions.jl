@@ -45,9 +45,23 @@ end
 
 initial_prob(d::MAPHDist)     = d.α
 subgenerator(d::MAPHDist)     = d.T
+
+"""
+    exit_rate_matrix(d::MAPHDist) -> Matrix{Float64}
+
+Return the `m × n` absorbing-rate matrix `D`.
+"""
 exit_rate_matrix(d::MAPHDist) = d.D
+
 nphases(d::MAPHDist)          = length(d.α)
+
+"""
+    nabsorbing(d::MAPHDist) -> Int
+
+Number of absorbing states `n`.
+"""
 nabsorbing(d::MAPHDist)       = size(d.D, 2)
+
 exit_rates(d::MAPHDist)       = -diag(d.T)
 
 """
@@ -108,7 +122,9 @@ end
 function Distributions.cdf(d::MAPHDist, u::Real, k::Integer)
     1 <= k <= nabsorbing(d) || throw(ArgumentError("k = $k out of range 1..$(nabsorbing(d))"))
     u <= 0 && return 0.0
-    return d.α' * (I - exp(d.T * u)) * (d.T \ d.D[:, k])
+    # F(u, k) = ∫_0^u α' exp(Tv) D[:,k] dv = -α'(I - exp(Tu)) T^{-1} D[:,k]
+    #        = α'(I - exp(Tu)) R[:,k]   with R = -T^{-1}D
+    return -d.α' * (I - exp(d.T * u)) * (d.T \ d.D[:, k])
 end
 
 """
@@ -205,12 +221,13 @@ PHDist(d::MAPHDist) = PHDist(d.α, d.T)
     PHDist(d::MAPHDist, k::Integer) -> PHDist
     conditional_time(d::MAPHDist, k::Integer) -> PHDist
 
-Conditional distribution of τ given κ = k, obtained as a Doob h-transform:
+Conditional distribution of τ given κ = k:
 
     α^(k)_i  = α_i · ρ_{ik} / ρ_k
     T^(k)_ij = T_ij · ρ_{jk} / ρ_{ik}   (i ≠ j),   T^(k)_ii = T_ii
 
-Phases `i` with `ρ_{ik} = 0` cannot reach absorbing state `k` and are dropped.
+where `ρ_{ik}` is the probability of absorption in state `k` starting from phase `i`.
+Phases with `ρ_{ik} = 0` cannot reach absorbing state `k` and are dropped.
 """
 function PHDist(d::MAPHDist, k::Integer)
     1 <= k <= nabsorbing(d) || throw(ArgumentError("k = $k out of range 1..$(nabsorbing(d))"))
@@ -231,6 +248,12 @@ function PHDist(d::MAPHDist, k::Integer)
     return PHDist(α_cond, T_cond)
 end
 
+"""
+    conditional_time(d::MAPHDist, k::Integer) -> PHDist
+
+Alias for `PHDist(d, k)` — the conditional distribution of `τ` given `κ = k`,
+returned as a PH distribution.
+"""
 conditional_time(d::MAPHDist, k::Integer) = PHDist(d, k)
 
 # ---- PH → MAPH embedding ----

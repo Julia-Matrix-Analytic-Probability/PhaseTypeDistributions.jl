@@ -60,6 +60,22 @@
             vals = [pdf(d, u, k) for u in grid]
             approx_mass = sum(vals) * (grid[2] - grid[1])
             @test approx_mass ≈ π[k] atol=5e-3
+            # cdf is non-negative, non-decreasing, and approaches π_k
+            @test cdf(d, 0.0, k) == 0.0
+            @test cdf(d, 1000.0, k) ≈ π[k] atol=1e-8
+            prev = 0.0
+            for u in [0.1, 0.5, 1.0, 3.0, 10.0]
+                fv = cdf(d, u, k)
+                @test fv >= prev - 1e-12
+                @test 0.0 <= fv <= π[k] + 1e-10
+                prev = fv
+            end
+            # cdf matches numerical integration of pdf (regression: sign-flip bug)
+            for u in [0.5, 1.0, 3.0]
+                fine = range(0.0, u; length=50_000)
+                approx_cdf = sum(pdf(d, v, k) for v in fine) * (fine[2] - fine[1])
+                @test cdf(d, u, k) ≈ approx_cdf atol=5e-4
+            end
             # cdf + ccdf = π_k
             for u in [0.1, 0.5, 1.0, 3.0]
                 @test cdf(d, u, k) + ccdf(d, u, k) ≈ π[k] atol=1e-10
@@ -76,8 +92,47 @@
             expected = α' * (T \ (T \ D[:, k]))
             @test kth_joint_moment(d, k, 1) ≈ expected atol=1e-10
         end
+        # Second moment E[τ² · 𝟙{κ=k}] = 2 α T⁻³ D_k (sign from (-1)^{j+1})
+        for k in 1:2
+            x = T \ D[:, k]; x = T \ x; x = T \ x
+            expected = -2.0 * (α' * x)   # j=2 → (-1)^{j+1} = -1; · 2!
+            @test kth_joint_moment(d, k, 2) ≈ expected atol=1e-10
+            @test kth_joint_moment(d, k, 2) > 0   # E[τ²·1{κ=k}] > 0
+        end
+        # j=1 sum across k equals E[τ] of the marginal PH
+        ph_marg = PHDist(d)
+        @test sum(kth_joint_moment(d, k, 1) for k in 1:2) ≈ mean(ph_marg) atol=1e-10
         @test_throws ArgumentError kth_joint_moment(d, 1, 0)
         @test_throws ArgumentError kth_joint_moment(d, 3, 1)
+    end
+
+    @testset "pdf/cdf/ccdf k-index validation" begin
+        @test_throws ArgumentError pdf(d, 1.0, 0)
+        @test_throws ArgumentError pdf(d, 1.0, 3)
+        @test_throws ArgumentError cdf(d, 1.0, 0)
+        @test_throws ArgumentError cdf(d, 1.0, 3)
+        @test_throws ArgumentError ccdf(d, 1.0, 0)
+        @test_throws ArgumentError ccdf(d, 1.0, 3)
+    end
+
+    @testset "conditional_time with defective ρ_{i,k}" begin
+        # 3-phase MAPH where phase 3 cannot reach absorbing state 1 (D[3,1] = 0)
+        αd = [0.5, 0.3, 0.2]
+        Td = [-2.0 0.5 0.5; 0.0 -3.0 1.0; 0.0 0.0 -1.5]
+        Dd = [0.6 0.4; 1.0 1.0; 0.0 1.5]   # rowsum(T) + rowsum(D) = 0
+        dd = MAPHDist(αd, Td, Dd)
+        R = absorption_probs(dd)
+        @test R[3, 1] ≈ 0.0 atol=1e-10
+        # PHDist(dd, 1) should drop phase 3
+        ph1 = PHDist(dd, 1)
+        @test nphases(ph1) == 2
+        # Mean of conditional matches E[τ·𝟙{κ=1}] / π_1
+        π = marginal_absorption(dd)
+        @test mean(ph1) ≈ kth_joint_moment(dd, 1, 1) / π[1] atol=1e-8
+        # PHDist(dd, 2) keeps all 3 phases
+        ph2 = PHDist(dd, 2)
+        @test nphases(ph2) == 3
+        @test mean(ph2) ≈ kth_joint_moment(dd, 2, 1) / π[2] atol=1e-8
     end
 
     @testset "conditional time τ | κ=k is a valid PH" begin

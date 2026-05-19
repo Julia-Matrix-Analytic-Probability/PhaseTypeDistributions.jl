@@ -124,7 +124,7 @@ function mgf(d::CoxianDist, t::Real)
     α = initial_prob(d)
     T = subgenerator(d)
     t0 = exit_rates(d)
-    return -α' * ((T - t * I) \ t0)
+    return -α' * ((T + t * I) \ t0)
 end
 
 Distributions.params(d::CoxianDist) = (d.rates, d.exit_probs)
