@@ -40,14 +40,36 @@ _phpattern(::AbstractArray, p::AbstractArray{Bool}) = p
 _phpattern(x::AbstractFixedSparsityArray, ::Nothing) = pattern(x)
 _phpattern(x::AbstractArray, ::Nothing) = .!iszero.(x)
 
+# Validate that `T` is a sub-generator of a PH distribution: non-positive
+# diagonal, non-negative off-diagonal entries, and non-positive row sums (so the
+# exit-rate vector t⁰ = -T·1 is non-negative). A small absolute tolerance absorbs
+# floating-point drift from construction, conversion, and fitting.
+function _validate_subgenerator(T::AbstractMatrix{<:Real}; tol::Real=1e-8)
+    m = size(T, 1)
+    @inbounds for i in 1:m
+        T[i, i] <= tol ||
+            throw(ArgumentError("T must have a non-positive diagonal; T[$i,$i] = $(T[i, i])"))
+        rowsum = zero(float(real(eltype(T))))
+        for j in 1:m
+            rowsum += T[i, j]
+            i == j && continue
+            T[i, j] >= -tol ||
+                throw(ArgumentError("T must have non-negative off-diagonal entries; T[$i,$j] = $(T[i, j])"))
+        end
+        rowsum <= tol ||
+            throw(ArgumentError("each row of T must sum to ≤ 0 (so exit rates are non-negative); row $i sums to $rowsum"))
+    end
+    return nothing
+end
+
 """
     PHDist(α, T; αpattern=nothing, Tpattern=nothing)
 
 General phase-type distribution parameterized by an initial probability vector
 `α` (length `m`, non-negative, sums to 1) and a sub-generator matrix `T`
-(`m × m`, with strictly negative diagonal and non-negative off-diagonal entries
-such that each row sum is non-positive). The exit-rate vector is
-`t⁰ = -T · 1_m`.
+(`m × m`, with non-positive diagonal and non-negative off-diagonal entries such
+that each row sum is non-positive). The exit-rate vector is `t⁰ = -T · 1_m`.
+These conditions on `T` are validated at construction.
 
 `α` and `T` are stored as a [`FixedSparsityVector`](@ref) and a
 [`FixedSparsityMatrix`](@ref): they carry a **fixed sparsity pattern** marking
@@ -76,6 +98,7 @@ struct PHDist <: AbstractPHDist
         size(T) == (m, m) || throw(DimensionMismatch("T must be $m × $m, got $(size(T))"))
         all(α .>= 0) || throw(ArgumentError("α must be non-negative"))
         isapprox(sum(α), 1.0; atol=1e-10) || throw(ArgumentError("α must sum to 1, got $(sum(α))"))
+        _validate_subgenerator(T)
         αf = _FSV(Vector{Float64}(α), _phpattern(α, αpattern))
         Tf = _FSM(Matrix{Float64}(T), _phpattern(T, Tpattern))
         new(αf, Tf)

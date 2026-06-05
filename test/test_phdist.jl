@@ -125,6 +125,15 @@
         @test_throws ArgumentError PHDist([0.5, 0.3], [-1.0 0.0; 0.0 -1.0])  # doesn't sum to 1
         @test_throws DimensionMismatch PHDist([1.0], [-1.0 0.0; 0.0 -1.0])   # dimension mismatch
         @test_throws ArgumentError PHDist([-0.5, 1.5], [-1.0 0.0; 0.0 -1.0]) # negative α
+
+        # T must be a valid sub-generator.
+        @test_throws ArgumentError PHDist([1.0], reshape([2.0], 1, 1))        # positive diagonal
+        @test_throws ArgumentError PHDist([1.0, 0.0], [-1.0 -0.5; 0.0 -1.0]) # negative off-diagonal
+        @test_throws ArgumentError PHDist([1.0, 0.0], [-1.0 2.0; 0.0 -1.0])  # row sum > 0
+        # A valid sub-generator with a zero row sum (no exit from phase 1) is fine.
+        @test PHDist([1.0, 0.0], [-1.0 1.0; 0.0 -1.0]) isa PHDist
+        # Tiny drift within tolerance is accepted.
+        @test PHDist([1.0], reshape([1e-10], 1, 1)) isa PHDist
     end
 
     @testset "fixed-sparsity storage of α and T" begin
