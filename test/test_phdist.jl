@@ -126,4 +126,37 @@
         @test_throws DimensionMismatch PHDist([1.0], [-1.0 0.0; 0.0 -1.0])   # dimension mismatch
         @test_throws ArgumentError PHDist([-0.5, 1.5], [-1.0 0.0; 0.0 -1.0]) # negative α
     end
+
+    @testset "fixed-sparsity storage of α and T" begin
+        # Plain Vector/Matrix in, ordinary scalars/arrays out: the wrapping is
+        # internal and a user need not touch FixedSparsityMatrices.
+        d = PHDist([0.6, 0.4], [-2.0 1.0; 0.0 -3.0])
+        @test pdf(d, 0.5) isa Float64
+        @test rand(d) isa Float64
+        @test Matrix(subgenerator(d)) == [-2.0 1.0; 0.0 -3.0]
+        @test Vector(initial_prob(d)) == [0.6, 0.4]
+        @test subgenerator(d) == [-2.0 1.0; 0.0 -3.0]   # reads like a normal matrix
+
+        # The pattern is inferred from the nonzeros by default.
+        @test pattern(subgenerator(d)) == Bool[1 1; 0 1]
+        @test pattern(initial_prob(d)) == Bool[1, 1]
+
+        # Structural zeros are locked: writing a nonzero into a forbidden entry
+        # throws, while the allowed entries remain writable.
+        T = subgenerator(d)
+        @test_throws ArgumentError T[2, 1] = 5.0
+        T[1, 1] = -9.0
+        @test T[1, 1] == -9.0
+
+        # A converted Coxian carries its structural zeros (α = [1,0,0], bidiagonal T).
+        p = PHDist(CoxianDist([2.0, 3.0, 4.0], [0.3, 0.5]))
+        @test pattern(initial_prob(p)) == Bool[1, 0, 0]
+        @test pattern(subgenerator(p)) == Bool[1 1 0; 0 1 1; 0 0 1]
+        @test_throws ArgumentError initial_prob(p)[2] = 0.5
+
+        # An explicit pattern keeps a currently-zero entry free to become nonzero.
+        d2 = PHDist([1.0, 0.0], [-2.0 2.0; 0.0 -2.0]; αpattern = Bool[1, 1])
+        @test pattern(initial_prob(d2)) == Bool[1, 1]
+        initial_prob(d2)[2] = 0.0   # still allowed (no throw)
+    end
 end

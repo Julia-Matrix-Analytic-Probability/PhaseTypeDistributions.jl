@@ -11,7 +11,7 @@ a continuous and a discrete component.
 abstract type AbstractMAPHDist end
 
 """
-    MAPHDist(α, T, D)
+    MAPHDist(α, T, D; αpattern=nothing, Tpattern=nothing, Dpattern=nothing)
 
 MAPH distribution parameterized by
 
@@ -20,13 +20,24 @@ MAPH distribution parameterized by
 - `D`   m×n non-negative matrix of absorbing rates
 
 The pair must satisfy `T·1_m + D·1_n = 0` (row sums of the full generator vanish).
+
+As with [`PHDist`](@ref), `α`, `T`, and `D` are stored as fixed-sparsity arrays
+(a [`FixedSparsityVector`](@ref) and two [`FixedSparsityMatrix`](@ref)s), so the
+structural zeros — e.g. the block-diagonal structure of `T` and `D` when the MAPH
+is assembled from per-category PHs — are preserved and cannot be filled in. By
+default each pattern is inferred from the current nonzeros (a fixed-sparsity input
+keeps its own pattern); pass `αpattern` / `Tpattern` / `Dpattern` to set them
+explicitly.
 """
 struct MAPHDist <: AbstractMAPHDist
-    α::Vector{Float64}
-    T::Matrix{Float64}
-    D::Matrix{Float64}
+    α::_FSV
+    T::_FSM
+    D::_FSM
 
-    function MAPHDist(α::AbstractVector{<:Real}, T::AbstractMatrix{<:Real}, D::AbstractMatrix{<:Real})
+    function MAPHDist(α::AbstractVector{<:Real}, T::AbstractMatrix{<:Real}, D::AbstractMatrix{<:Real};
+                      αpattern::Union{Nothing, AbstractVector{Bool}}=nothing,
+                      Tpattern::Union{Nothing, AbstractMatrix{Bool}}=nothing,
+                      Dpattern::Union{Nothing, AbstractMatrix{Bool}}=nothing)
         m = length(α)
         size(T) == (m, m) || throw(DimensionMismatch("T must be $m × $m, got $(size(T))"))
         size(D, 1) == m   || throw(DimensionMismatch("D must have $m rows, got $(size(D,1))"))
@@ -37,7 +48,10 @@ struct MAPHDist <: AbstractMAPHDist
         rowsum = vec(sum(T; dims=2) .+ sum(D; dims=2))
         all(abs.(rowsum) .< 1e-8) || throw(ArgumentError(
             "T·1_m + D·1_n must equal 0 (max |rowsum| = $(maximum(abs.(rowsum))))"))
-        new(Float64.(α), Float64.(T), Float64.(D))
+        αf = _FSV(Vector{Float64}(α), _phpattern(α, αpattern))
+        Tf = _FSM(Matrix{Float64}(T), _phpattern(T, Tpattern))
+        Df = _FSM(Matrix{Float64}(D), _phpattern(D, Dpattern))
+        new(αf, Tf, Df)
     end
 end
 
@@ -359,8 +373,8 @@ end
 Distributions.params(d::MAPHDist) = (d.α, d.T, d.D)
 
 function Base.show(io::IO, d::MAPHDist)
-    print(io, "MAPHDist{m=", nphases(d), ", n=", nabsorbing(d), "}(α=", d.α,
-              ", T=", d.T, ", D=", d.D, ")")
+    print(io, "MAPHDist{m=", nphases(d), ", n=", nabsorbing(d), "}(α=", Vector(d.α),
+              ", T=", Matrix(d.T), ", D=", Matrix(d.D), ")")
 end
 
 function Base.isapprox(d1::MAPHDist, d2::MAPHDist; kwargs...)

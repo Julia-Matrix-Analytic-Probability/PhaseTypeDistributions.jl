@@ -25,8 +25,23 @@ nphases(d::AbstractPHDist) = length(initial_prob(d))
 
 # --- General PH distribution: (α, T) matrix representation ---
 
+# Concrete fixed-sparsity storage types backing α and T. The pattern is held as
+# a field (a BitVector / BitMatrix), so distinct sparsity patterns do not produce
+# distinct PHDist types.
+const _FSV = FixedSparsityVector{Float64, Vector{Float64}, BitVector}
+const _FSM = FixedSparsityMatrix{Float64, Matrix{Float64}, BitMatrix}
+
+# Resolve the sparsity pattern for an α/T argument:
+#   * an explicit pattern wins;
+#   * a fixed-sparsity input keeps its own pattern (so structural zeros that are
+#     currently numerically zero are not silently dropped);
+#   * a plain array infers its pattern from the current nonzeros.
+_phpattern(::AbstractArray, p::AbstractArray{Bool}) = p
+_phpattern(x::AbstractFixedSparsityArray, ::Nothing) = pattern(x)
+_phpattern(x::AbstractArray, ::Nothing) = .!iszero.(x)
+
 """
-    PHDist(α, T)
+    PHDist(α, T; αpattern=nothing, Tpattern=nothing)
 
 General phase-type distribution parameterized by an initial probability vector
 `α` (length `m`, non-negative, sums to 1) and a sub-generator matrix `T`
@@ -34,21 +49,36 @@ General phase-type distribution parameterized by an initial probability vector
 such that each row sum is non-positive). The exit-rate vector is
 `t⁰ = -T · 1_m`.
 
+`α` and `T` are stored as a [`FixedSparsityVector`](@ref) and a
+[`FixedSparsityMatrix`](@ref): they carry a **fixed sparsity pattern** marking
+which entries are allowed to be nonzero, so the structural zeros of a PH family
+(e.g. a Coxian's `α = [1, 0, …]` and bidiagonal `T`) are preserved and cannot be
+filled in — important for structure-preserving fitting.
+
+By default the pattern is inferred from the current nonzeros of `α`/`T` (and a
+fixed-sparsity input keeps its own pattern). Pass `αpattern` / `Tpattern` —
+boolean arrays of matching shape — to set it explicitly, e.g. to keep a position
+that happens to be zero now but should remain free to become nonzero.
+
 `PHDist` is the most general PH type in the package; specialized subtypes
 ([`HyperExponentialDist`](@ref), [`HypoExponentialDist`](@ref),
 [`ErlangPHDist`](@ref), [`CoxianDist`](@ref)) can be converted to it via
-`PHDist(d)`.
+`PHDist(d)`, which carries each family's structural zeros into the pattern.
 """
 struct PHDist <: AbstractPHDist
-    α::Vector{Float64}
-    T::Matrix{Float64}
+    α::_FSV
+    T::_FSM
 
-    function PHDist(α::Vector{<:Real}, T::Matrix{<:Real})
+    function PHDist(α::AbstractVector{<:Real}, T::AbstractMatrix{<:Real};
+                   αpattern::Union{Nothing, AbstractVector{Bool}}=nothing,
+                   Tpattern::Union{Nothing, AbstractMatrix{Bool}}=nothing)
         m = length(α)
         size(T) == (m, m) || throw(DimensionMismatch("T must be $m × $m, got $(size(T))"))
         all(α .>= 0) || throw(ArgumentError("α must be non-negative"))
         isapprox(sum(α), 1.0; atol=1e-10) || throw(ArgumentError("α must sum to 1, got $(sum(α))"))
-        new(Float64.(α), Float64.(T))
+        αf = _FSV(Vector{Float64}(α), _phpattern(α, αpattern))
+        Tf = _FSM(Matrix{Float64}(T), _phpattern(T, Tpattern))
+        new(αf, Tf)
     end
 end
 
@@ -178,7 +208,7 @@ end
 Distributions.params(d::PHDist) = (d.α, d.T)
 
 function Base.show(io::IO, d::PHDist)
-    print(io, "PHDist(α=", d.α, ", T=", d.T, ")")
+    print(io, "PHDist(α=", Vector(d.α), ", T=", Matrix(d.T), ")")
 end
 
 function Random.rand(rng::AbstractRNG, d::AbstractPHDist)

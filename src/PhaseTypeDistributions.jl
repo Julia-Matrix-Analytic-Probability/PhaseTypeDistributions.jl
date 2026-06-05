@@ -4,6 +4,7 @@ using LinearAlgebra
 using Random
 using Statistics
 using Distributions
+using FixedSparsityMatrices
 import Distributions: pdf, logpdf, cdf, ccdf, insupport, minimum, maximum,
     quantile, params, skewness, kurtosis, mgf
 import Random: rand
@@ -45,5 +46,8 @@ export kth_joint_moment, conditional_time
 
 # Comparison helpers
 export moments_isapprox, distribution_isapprox, moment_vector
+
+# Re-export the fixed-sparsity array types (the storage backing α, T, D)
+export FixedSparsityMatrix, FixedSparsityVector, pattern
 
 end
