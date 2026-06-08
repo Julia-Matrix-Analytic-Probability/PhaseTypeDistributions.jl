@@ -1,7 +1,7 @@
 name = "PhaseTypeDistributions"
 uuid = "c6a3dbec-a81b-4ac0-803e-44f90338b00b"
 authors = ["Zhihao Qiao <zhihao.qiao@uq.edu.au>", "Yoni Nazarathy <y.nazarathy@uq.edu.au>"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
