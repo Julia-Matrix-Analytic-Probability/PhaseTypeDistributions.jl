@@ -223,4 +223,4 @@ live in the companion package
 
 This package accompanies a paper currently in preparation:
 
-> Zhihao Qiao, Budhi Surya, Azam Asanjarani, Yoni Nazarathy. *Multi-Absorbing Phase-Type Distributions for Competing Risks: Inference, Algorithms, and Applications*. (In preparation.)
+> Zhihao Qiao, Budhi Surya, Azam Asanjarani, Yoni Nazarathy. *Multi-Absorbing Phase-Type Distributions for Competing Risks*. (In preparation.)
