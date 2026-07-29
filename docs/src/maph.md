@@ -123,6 +123,28 @@ ccdf(d, 1.0, 1)           # P(τ > 1.0, κ = 1)
 `cdf(d, u, k) + ccdf(d, u, k) = π_k` for all `u ≥ 0`. As `u → ∞`,
 `cdf(d, u, k) → π_k` and `ccdf(d, u, k) → 0`.
 
+### Marginal (all-cause) law of `τ`
+
+Dropping the cause index gives the marginal law of the absorption time. The
+survival `S(u) = P(τ > u) = α' exp(Tu) 1` is the likelihood of a record known
+only to have survived past `u` — a **right-censored** observation, whose
+eventual cause is unobserved:
+
+```@example maph
+ccdf(d, 1.0)              # S(1.0) = P(τ > 1.0)
+```
+
+```@example maph
+cdf(d, 1.0), logccdf(d, 1.0)
+```
+
+It sums the joint survivals over causes, and coincides with the marginal PH law
+of `τ` (see [Bridge to PH](#Bridge-to-PH)):
+
+```@example maph
+ccdf(d, 1.0) ≈ sum(ccdf(d, 1.0, k) for k in 1:nabsorbing(d)) ≈ ccdf(PHDist(d), 1.0)
+```
+
 ### Absorption probabilities
 
 `R[i, k] = P(κ = k | start in phase i) = (-T⁻¹D)[i, k]`. Rows sum to 1 for
@@ -178,6 +200,29 @@ sims = rand(rng, d, n)
 [sum(s -> s[2] == k, sims) / n for k in 1:nabsorbing(d)]
 ```
 
+### Right-censored sampling
+
+`rand_censored` draws subjects that may be right-censored before their event.
+The censoring argument is either a fixed administrative horizon or a
+distribution for the per-subject censoring time; either way it is drawn
+independently of `(τ, κ)`, so the censoring is non-informative:
+
+```@example maph
+sim = rand_censored(rng, d, 5_000, 0.4)     # horizon at u = 0.4
+length(sim.events), length(sim.censored)
+```
+
+The censored fraction matches the survival at the horizon:
+
+```@example maph
+length(sim.censored) / 5_000, ccdf(d, 0.4)
+```
+
+The returned `(events, censored)` pair is shaped to feed the censored-data
+fitting interface of
+[PhaseTypeDistributionsFitting.jl](https://julia-matrix-analytic-probability.github.io/PhaseTypeDistributionsFitting.jl/)
+directly, as `fit_mle(MAPHDist, sim.events; m = 3, censored = sim.censored)`.
+
 ## Bridge to PH
 
 Every MAPH has a marginal `τ`, which is a PH distribution:
@@ -220,5 +265,9 @@ conditional_time
 Distributions.cdf(::MAPHDist, ::Real, ::Integer)
 Distributions.ccdf(::MAPHDist, ::Real, ::Integer)
 Distributions.pdf(::MAPHDist, ::Real, ::Integer)
+Distributions.cdf(::MAPHDist, ::Real)
+Distributions.ccdf(::MAPHDist, ::Real)
+Distributions.logccdf(::MAPHDist, ::Real)
 Base.rand(::Random.AbstractRNG, ::MAPHDist)
+rand_censored
 ```

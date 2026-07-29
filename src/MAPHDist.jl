@@ -165,6 +165,45 @@ function Distributions.ccdf(d::MAPHDist, u::Real, k::Integer)
     return marginal_absorption(d)[k] - cdf(d, u, k)
 end
 
+# ---- Marginal (all-cause) law of τ ----
+# S(u) = P(τ > u) = α' exp(Tu) 1 is the likelihood contribution of a record known
+# only to be right-censored at u — the eventual cause is unobserved. As with
+# `AbstractPHDist`, the survival is the natively-computed quantity and the cdf
+# derives from it, so tail precision is preserved.
+
+"""
+    ccdf(d::MAPHDist, u::Real)
+
+Marginal (all-cause) survival `S(u) = P(τ > u) = α' exp(T·u) 1`, the likelihood of
+an observation known only to be right-censored at `u`. Equals `Σₖ ccdf(d, u, k)`
+and agrees with `ccdf(PHDist(d), u)`.
+"""
+function Distributions.ccdf(d::MAPHDist, u::Real)
+    u <= 0 && return 1.0
+    return d.α' * exp(d.T * u) * ones(nphases(d))
+end
+
+"""
+    cdf(d::MAPHDist, u::Real)
+
+Marginal (all-cause) distribution function `P(τ ≤ u) = 1 - S(u)`.
+"""
+function Distributions.cdf(d::MAPHDist, u::Real)
+    u < 0 && return 0.0
+    return 1.0 - ccdf(d, u)
+end
+
+"""
+    logccdf(d::MAPHDist, u::Real)
+
+Log marginal survival `log P(τ > u)`, the log-likelihood contribution of a record
+right-censored at `u`. Returns `-Inf` when the survival underflows to zero.
+"""
+function Distributions.logccdf(d::MAPHDist, u::Real)
+    s = ccdf(d, u)
+    return s > 0 ? log(s) : -Inf
+end
+
 function _sample_categorical(rng::AbstractRNG, p::AbstractVector)
     u = rand(rng)
     cum = 0.0
@@ -224,6 +263,50 @@ end
 Random.rand(d::MAPHDist) = rand(Random.default_rng(), d)
 Random.rand(rng::AbstractRNG, d::MAPHDist, n::Integer) = [rand(rng, d) for _ in 1:n]
 Random.rand(d::MAPHDist, n::Integer) = rand(Random.default_rng(), d, n)
+
+# Draw one censoring time: either a fixed administrative horizon or a variate of
+# a censoring distribution independent of (τ, κ).
+_draw_censoring(::AbstractRNG, c::Real) = Float64(c)
+_draw_censoring(rng::AbstractRNG, c::UnivariateDistribution) = Float64(rand(rng, c))
+
+"""
+    rand_censored([rng,] d::MAPHDist, L::Integer, censoring)
+
+Draw `L` independently right-censored competing-risks records. For each subject a
+pair `(τ, κ)` is drawn from `d` and a censoring time `C` from `censoring` — either
+a `Real` (a fixed administrative horizon) or a `UnivariateDistribution` — and the
+subject is recorded as an event when `τ ≤ C` and as censored at `C` otherwise.
+
+Returns the named tuple `(events, censored)`, where `events` is a vector of
+`(τ, κ)` pairs and `censored` a vector of censoring times, shaped to feed the
+fitting interface of PhaseTypeDistributionsFitting.jl directly:
+
+```julia
+sim = rand_censored(d, 1000, Exponential(2.0))
+fit_mle(MAPHDist, sim.events; m = 3, censored = sim.censored)
+```
+
+Because `C` is drawn independently of `(τ, κ)`, the censoring is non-informative,
+as the censored-data EM assumes.
+"""
+function rand_censored(rng::AbstractRNG, d::MAPHDist, L::Integer, censoring)
+    L >= 0 || throw(ArgumentError("L must be non-negative, got $L"))
+    if censoring isa Real
+        censoring > 0 || throw(ArgumentError("censoring time must be positive, got $censoring"))
+    end
+    events = Tuple{Float64, Int}[]
+    censored = Float64[]
+    for _ in 1:L
+        τ, κ = rand(rng, d)
+        c = _draw_censoring(rng, censoring)
+        c > 0 || throw(ArgumentError("censoring times must be strictly positive, got $c"))
+        τ <= c ? push!(events, (τ, κ)) : push!(censored, c)
+    end
+    return (events = events, censored = censored)
+end
+
+rand_censored(d::MAPHDist, L::Integer, censoring) =
+    rand_censored(Random.default_rng(), d, L, censoring)
 
 # ---- Moments ----
 
