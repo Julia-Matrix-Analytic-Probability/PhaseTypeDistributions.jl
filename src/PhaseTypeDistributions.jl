@@ -5,7 +5,7 @@ using Random
 using Statistics
 using Distributions
 using FixedSparsityMatrices
-import Distributions: pdf, logpdf, cdf, ccdf, insupport, minimum, maximum,
+import Distributions: pdf, logpdf, cdf, ccdf, logccdf, insupport, minimum, maximum,
     quantile, params, skewness, kurtosis, mgf
 import Random: rand
 import Statistics: mean, var
@@ -42,7 +42,7 @@ export exit_rate_matrix, nabsorbing, absorption_probs, marginal_absorption
 export scv, kth_moment
 
 # MAPH-specific functions
-export kth_joint_moment, conditional_time
+export kth_joint_moment, conditional_time, rand_censored
 
 # Comparison helpers
 export moments_isapprox, distribution_isapprox, moment_vector

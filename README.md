@@ -155,12 +155,31 @@ d = MAPHDist(α, T, D)
 
 pdf(d, 1.0, 1)              # joint sub-density f(1.0, κ=1)
 cdf(d, 1.0, 1)              # P(τ ≤ 1, κ = 1)
+ccdf(d, 1.0)                # all-cause survival S(1.0) = P(τ > 1)
 marginal_absorption(d)      # vector of P(κ = k)
 kth_joint_moment(d, 1, 2)   # E[τ² · 𝟙{κ=1}]
 
 (τ, k) = rand(d)            # sample the pair
 samples = rand(d, 1000)     # vector of (τ, κ) tuples
 ```
+
+### Right-censored sampling
+
+`rand_censored` draws subjects that may be censored before their event, with
+the censoring time either a fixed horizon or a distribution. It returns the
+events and the censoring times separately — the shape the censored-data fitting
+interface of PhaseTypeDistributionsFitting.jl expects:
+
+```julia
+sim = rand_censored(d, 1000, 2.5)          # administrative horizon at u = 2.5
+sim.events                                 # Vector of (τ, κ) for τ ≤ 2.5
+sim.censored                               # censoring times of the rest
+
+rand_censored(d, 1000, Exponential(3.0))   # random censoring times
+```
+
+The censoring time is drawn independently of `(τ, κ)`, so the censoring is
+non-informative. The censored fraction is `ccdf(d, c)` for a fixed horizon `c`.
 
 ### Interface with PH distributions
 

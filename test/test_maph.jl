@@ -86,6 +86,61 @@
         @test ccdf(d, 0.0, 1) ≈ π[1] atol=1e-10
     end
 
+    @testset "marginal survival S(u) = P(τ > u)" begin
+        for u in [0.05, 0.5, 1.0, 3.0, 10.0]
+            S = ccdf(d, u)
+            # All-cause survival is the sum of the joint survivals ...
+            @test S ≈ sum(ccdf(d, u, k) for k in 1:2) atol=1e-12
+            # ... and agrees with the marginal PH law of τ.
+            @test S ≈ ccdf(PHDist(d), u) atol=1e-12
+            @test cdf(d, u) + S ≈ 1.0 atol=1e-12
+            @test logccdf(d, u) ≈ log(S) atol=1e-12
+        end
+        @test ccdf(d, 0.0) == 1.0
+        @test ccdf(d, -1.0) == 1.0
+        @test cdf(d, -1.0) == 0.0
+        @test cdf(d, 0.0) == 0.0
+        @test ccdf(d, 1e4) ≈ 0.0 atol=1e-12
+        @test logccdf(d, 1e4) == -Inf
+    end
+
+    @testset "rand_censored" begin
+        rng = StableRNG(4242)
+        N = 20_000
+
+        # Fixed administrative horizon: the censored fraction is S(c).
+        c = 0.4
+        sim = rand_censored(rng, d, N, c)
+        @test length(sim.events) + length(sim.censored) == N
+        @test all(==(c), sim.censored)
+        @test all(e -> 0 < e[1] <= c && 1 <= e[2] <= 2, sim.events)
+        @test isapprox(length(sim.censored) / N, ccdf(d, c); atol=0.02)
+        # Events are the sub-distribution restricted to (0, c]: their cause split
+        # is F(c, k) / F(c) and their count is F(c)·N.
+        @test isapprox(length(sim.events) / N, cdf(d, c); atol=0.02)
+        for k in 1:2
+            frac = count(e -> e[2] == k, sim.events) / length(sim.events)
+            @test isapprox(frac, cdf(d, c, k) / cdf(d, c); atol=0.02)
+        end
+
+        # Random censoring times: P(censored) = P(τ > C) with C ⊥ (τ, κ).
+        cdist = Exponential(1.0)
+        sim2 = rand_censored(rng, d, N, cdist)
+        @test length(sim2.events) + length(sim2.censored) == N
+        @test all(>(0), sim2.censored)
+        grid = range(0.0, 40.0; length=20_000)
+        h = step(grid)
+        p_cens = sum(ccdf(d, u) * pdf(cdist, u) for u in grid) * h
+        @test isapprox(length(sim2.censored) / N, p_cens; atol=0.02)
+
+        # No censoring at all when the horizon is far beyond the support.
+        sim3 = rand_censored(rng, d, 200, 1e6)
+        @test isempty(sim3.censored) && length(sim3.events) == 200
+
+        @test_throws ArgumentError rand_censored(rng, d, 10, 0.0)
+        @test_throws ArgumentError rand_censored(rng, d, -1, 1.0)
+    end
+
     @testset "kth_joint_moment" begin
         # First moment E[τ · 𝟙{κ=k}] = α T⁻² D_k
         for k in 1:2
